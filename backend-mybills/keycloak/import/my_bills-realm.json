@@ -14,7 +14,7 @@
       "standardFlowEnabled": false,
       "directAccessGrantsEnabled": false,
 
-      "secret": "MBvImnz0NCvgTGFcO1AKBc16RE2qO0qgjWgNBhyHqdUEOWljJrmImhvhWEmnGsP8",
+      "secret": "${KC_API_CLIENT_SECRET}",
 
       "redirectUris": [
         "*"
