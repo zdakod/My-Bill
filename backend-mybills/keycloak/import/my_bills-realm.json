@@ -1,0 +1,36 @@
+{
+  "realm": "mybills",
+  "enabled": true,
+
+  "clients": [
+    {
+      "clientId": "api-service",
+      "name": "Billing API Service Client",
+      "protocol": "openid-connect",
+      "enabled": true,
+
+      "publicClient": false,
+      "serviceAccountsEnabled": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+
+      "secret": "MBvImnz0NCvgTGFcO1AKBc16RE2qO0qgjWgNBhyHqdUEOWljJrmImhvhWEmnGsP8",
+
+      "redirectUris": [
+        "*"
+      ],
+      "webOrigins": [
+        "*"
+      ]
+    }
+  ],
+
+  "roles": {
+    "realm": [
+      {
+        "name": "billing_read",
+        "description": "Allows fetching billing data"
+      }
+    ]
+  }
+}

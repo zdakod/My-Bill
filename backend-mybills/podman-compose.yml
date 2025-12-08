@@ -1,0 +1,138 @@
+#
+# Author:             Kevin Vo (vok)
+# Contact Email:      kevin.vo@sunrise.net
+# Contact Phone:      +41 76 777 54 29
+#
+# Current file:				/Users/vok/Desktop/sunrise-hackathon/podman-stack/podman-compose.yml
+# Date of creation:   08.12.2025
+# Last revision:			08.12.2025, 20:00
+#
+# Reference:          None
+#
+# Comments:           None
+#
+---
+ 
+version: "3.9"
+
+services:
+  # ------------ TRAEFIK GATEWAY ------------
+  traefik:
+    image: traefik:v3.0
+    command:
+      - "--configFile=/etc/traefik/traefik-public.yml"
+    ports:
+      - "8080:80"
+      - "8443:443"
+    networks:
+      - app_net
+    volumes:
+      - ./traefik/traefik-public.yml:/etc/traefik/traefik-public.yml:ro
+      - ./traefik/traefik-internal.yml:/etc/traefik/traefik-internal.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - letsencrypt:/letsencrypt
+      - ./certs/internal:/certs/internal:ro
+    environment:
+      - TZ=${TZ}
+    restart: always
+
+  # ------------ SINGLE MYSQL INSTANCE (NO HA) ------------
+  mysql:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password --mysqlx=0
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD}
+      - MYSQL_DATABASE=${MYSQL_APP_DB}
+      - MYSQL_USER=${MYSQL_APP_USER}
+      - MYSQL_PASSWORD=${MYSQL_APP_PASSWORD}
+    networks:
+      - db_net
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./db-init:/docker-entrypoint-initdb.d:ro
+    restart: always
+
+  # ------------ KEYCLOAK DB (POSTGRES) ------------
+  kc-db:
+    image: postgres:16
+    environment:
+      - POSTGRES_DB=keycloak
+      - POSTGRES_USER=${KC_DB_USER}
+      - POSTGRES_PASSWORD=${KC_DB_PASSWORD}
+    volumes:
+      - kcdb_data:/var/lib/postgresql/data
+    networks:
+      - app_net
+    restart: always
+
+  # ------------ KEYCLOAK ------------
+  keycloak:
+    image: quay.io/keycloak/keycloak:25.0
+    command:
+      - "start"
+      - "--hostname=${AUTH_DOMAIN}"
+      - "--proxy=edge"
+      - "--import-realm"
+    environment:
+      - KEYCLOAK_ADMIN=${KEYCLOAK_ADMIN}
+      - KEYCLOAK_ADMIN_PASSWORD=${KEYCLOAK_ADMIN_PASSWORD}
+      - KC_DB=postgres
+      - KC_DB_USERNAME=${KC_DB_USER}
+      - KC_DB_PASSWORD=${KC_DB_PASSWORD}
+      - KC_DB_URL_HOST=kc-db
+      - KC_DB_URL_PORT=5432
+      - KC_DB_URL_DATABASE=keycloak    
+    networks:
+      - app_net
+    depends_on:
+      - kc-db
+    restart: always
+    volumes:
+      - ./keycloak/import:/opt/keycloak/data/import:ro
+
+  # ------------ API SERVICE ------------
+  api:
+    build:
+      context: ./api
+      dockerfile: Containerfile
+    image: ${API_IMAGE}
+    environment:
+      - TZ=${TZ}
+      - DB_HOST=mysql
+      - DB_PORT=3306
+      - DB_USER=${MYSQL_APP_USER}
+      - DB_PASSWORD=${MYSQL_APP_PASSWORD}
+      - DB_NAME=${MYSQL_APP_DB}
+
+      # OIDC / Keycloak
+      - PUBLIC_SCHEME=${PUBLIC_SCHEME}
+      - PUBLIC_PORT=${PUBLIC_PORT}
+      - AUTH_DOMAIN=${AUTH_DOMAIN}
+      - OIDC_ISSUER_URI=${OIDC_ISSUER_URI}
+      - OIDC_CLIENT_ID=${OIDC_CLIENT_ID}
+      - OIDC_AUDIENCE=${OIDC_AUDIENCE}
+      - OIDC_JWKS_URL=http://keycloak:8080/realms/mybills/protocol/openid-connect/certs
+
+      # API Authentication
+      - AUTH_DISABLED=${AUTH_DISABLED}
+    networks:
+      - app_net
+      - db_net
+    depends_on:
+      - mysql
+      - keycloak
+    restart: always
+
+networks:
+  app_net:
+    driver: bridge
+  db_net:
+    driver: bridge
+
+volumes:
+  mysql_data:
+  kcdb_data:
+  letsencrypt:
+ 
+...
+# vim:ts=2:sts=2:sw=2:et:ai

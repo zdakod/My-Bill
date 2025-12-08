@@ -1,0 +1,66 @@
+#
+# Author:             Kevin Vo (vok)
+# Contact Email:      kevin.vo@sunrise.net
+# Contact Phone:      +41 76 777 54 29
+#
+# Current file:				/Users/vok/Desktop/sunrise-hackathon/podman-stack/traefik/dynamic/routers.yml
+# Date of creation:   08.12.2025
+# Last revision:			08.12.2025, 17:16
+#
+# Reference:          None
+#
+# Comments:           None
+#
+---
+
+#tls:
+#  certificates:
+#    - certFile: "/certs/internal/tls.crt"
+#      keyFile: "/certs/internal/tls.key"
+
+# === DEV ===
+http:
+  routers:
+    api-router:
+      rule: "PathPrefix(`/api`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      service: api-service
+
+    keycloak-router:
+      rule: "PathPrefix(`/admin`) || PathPrefix(`/realms`) || PathPrefix(`/resources`)"
+      entryPoints:
+        - websecure
+      service: keycloak-service
+      tls: {}
+
+# === PROD ===
+#http:
+#  routers:
+#    api-router:
+#      rule: "Host(`api.env.corp.tld`)"
+#      entryPoints: [ websecure ]
+#      service: api-service
+#      tls: {}
+#
+#    keycloak-router:
+#      rule: "Host(`auth.env.corp.tld`)"
+#      entryPoints: [ websecure ]
+#      service: keycloak-service
+#      tls: {}
+
+  services:
+    api-service:
+      loadBalancer:
+        servers:
+          - url: "http://api:8080"
+
+    keycloak-service:
+      loadBalancer:
+        servers:
+          - url: "http://keycloak:8080"
+ 
+...
+# vim:ts=2:sts=2:sw=2:et:ai

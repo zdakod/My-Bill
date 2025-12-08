@@ -1,178 +1,83 @@
-📡 My Bills – Telecom Billing Analytics Dashboard
-Idea for Sunrise analytics dashboard built with Next.js 16, Tailwind CSS, shadcn/ui & MySQL
+# MyBills – Fullstack Billing Dashboard
 
-🚀 Overview
+MyBills is a fullstack billing dashboard project designed to handle customer usage and invoicing data in a secure and scalable way. The system is composed of a Python backend microservice stack and a NextJS frontend application.
 
-My Bills is a telecom billing analytics dashboard designed for exploring two years of billing history for a single customer.
-It was built as part of a hackathon challenge:
+---
 
-“Create a multi-dimensional telecom billing analytics dashboard designed for exploring two years of bills for a single customer. The layout and interactions should focus on clarity, drill-down capability, and insight discovery.”
+## Project Structure
 
-The dashboard provides a clean, modern interface aligned with the Sunrise Swiss telecom brand style, offering interactive charts, insights, billing breakdowns, and drill-down capabilities.
+```
+.
+├── LICENSE
+├── backend-mybills
+│   ├── README.md               # Backend documentation (FastAPI, Keycloak, DB)
+│   ├── api/                    # FastAPI application with billing APIs
+│   ├── certs/                  # Internal TLS certificates
+│   ├── db-init/                # MySQL DB initialization script
+│   ├── haproxy/                # Optional MySQL load balancing
+│   ├── keycloak/               # Realm import for OIDC auth
+│   ├── mysql-config/           # Custom MySQL config
+│   ├── podman-compose.yml      # Podman Compose stack
+│   └── traefik/                # Routing and HTTPS via Traefik
+└── frontend-mybills/           # [Placeholder] UI application (TBD)
+```
 
-🧱 Tech Stack
-Frontend
-Next.js 16 (App Router)
-TypeScript
-Tailwind CSS
-shadcn/ui
-Lightweight custom visualizations (no heavy charting libs required)
-Backend
-Next.js API Routes
-MySQL (local or remote)
-Compatible with Prisma / Drizzle / mysql2 (your choice)
-Design
-Sunrise color gradient (Red → Orange → Yellow)
-Responsive, mobile-friendly UI
-Component-driven architecture
+---
 
-✨ Features
-📊 Billing Overview
+## Backend Overview (`backend-mybills/`)
 
-Explore 24 months of historical telecom bills
-Monthly total trend line
-Highest & average bills
-Filter by 6, 12, or 24 months
+- Built with **FastAPI** for the API layer
+- **Keycloak** handles optional OIDC authentication (role-based)
+- **MySQL** stores billing, customer, and invoice data
+- **Traefik** reverse-proxy for TLS termination and routing
+- **Podman Compose** used for service orchestration
 
-💡 Insight Generation
+For full details, see [`backend-mybills/README.md`](./backend-mybills/README.md)
 
-Bill anomalies (e.g., unusually high month)
-Plan optimization suggestions
-Usage insights (data, roaming, calls)
+---
 
-🧾 Detailed Bill Breakdown
+## Frontend Overview (`frontend-mybills/`)
 
-Subscription charges
-National & roaming usage
-Device installments
-Discounts & one-time fees
-Data consumption per month
+> **To be implemented**
 
-📈 Visual Analytics
+This directory is reserved for the frontend application (NextJS).
 
-Monthly bill timeline
-Cost distribution donut
-Usage breakdown tabs
+...
 
-🧩 shadcn/ui Component Integration
+For full details, see [`frontend-mybills/README.md`](./frontend-mybills/README.md)
 
-Cards
-Badges
-Tables
-Tabs
-Select menus
-Scrollable containers
+---
 
-Buttons
+## Running the Stack
 
-🗂️ Project Structure
-/
+TBD:
 
-├── app/
+```bash
+TBD
+```
 
-│   ├── my-bills/
+> Requires Podman and Podman Compose installed
 
-│   │   └── page.tsx          # Main dashboard UI
+---
 
-│   ├── api/
+## License
 
-│   │   └── bills/route.ts    # Placeholder for MySQL API integration
+This project is licensed under the terms of the LICENSE file.
 
-│   └── layout.tsx
+---
 
-│
+## Authors
 
-├── components/
+**Bianka Maria Zieba**  
+biankamaria.zieba@sunrise.net  
++41 76 777 57 50
 
-│   └── ui/                   # Auto-generated shadcn/ui components
+**David Dakoli**  
+david.dakoli@sunrise.net  
++41 76 777 56 73
 
-│
+**Kevin Vo**  
+kevin.vo@sunrise.net  
++41 76 777 54 29
 
-├── lib/
-
-│   └── billing-data.ts       # Mock data used for prototyping
-
-│
-
-├── public/
-
-│
-
-├── tailwind.config.js
-
-├── package.json
-
-└── README.md
-
-💾 Database Schema
-
-This project uses a normalized telecom billing schema including:
-customers
-subscriptions
-invoices
-charges
-charge_types
-row_types
-products
-The dataset contains realistic telecom billing rows for one customer (Lisa Simpson), including:
-Recurring charges
-Installments
-Roaming usage
-National usage
-One-time charges
-Discounts
-Monthly subscription totals
-
-🏗️ Installation
-1️ Clone the repository
-git clone https://github.com/<your-username>/<your-repo>.git
-cd <your-repo>
-
-2️ Install dependencies
-npm install
-
-3️ Install shadcn/ui
-npx shadcn@latest init
-
-Add required components:
-npx shadcn@latest add card button badge table tabs select scroll-area
-
-4️ Setup .env for MySQL
-DATABASE_URL="mysql://user:password@localhost:3306/telecom_billing"
-
-5️ Run the development server
-npm run dev
-
-Your dashboard is available at:
-🔗 http://localhost:3000/my-bills
-
-📈 Future Improvements
-
-Replace mock data with MySQL API Routes
-Add customer selector
-Add authentication (NextAuth/Auth0)
-Replace CSS charts with Chart.js/Recharts/Tremor if needed
-Predictive billing trend engine
-Export/printable PDF bill summary
-
-🎨 UI/UX Principles Followed
-
-Sunrise-inspired gradient branding
-High data readability
-Modern & light visual hierarchy
-Drill-down–first interaction design
-Insight cards for decision support
-Friendly mobile & desktop responsiveness
-
-🏁 Hackathon Goal Achievement
-This project fully meets the challenge requirements:
-
-✔ Two-year billing exploration
-✔ Multi-dimensional charge analysis
-✔ Clean, modern UI
-✔ Insight-driven layout
-✔ Drill-down capability
-✔ Structured MySQL backend
-✔ Component-based Next.js architecture
-
-by Kevin Vo, Bianka Zieba, David Dakoli
+---

@@ -1,0 +1,41 @@
+#
+# Author:             Kevin Vo (vok)
+# Contact Email:      kevin.vo@sunrise.net
+# Contact Phone:      +41 76 777 54 29
+#
+# Current file:				/Users/vok/Desktop/sunrise-hackathon/podman-stack/traefik/traefik-public.yml
+# Date of creation:   08.12.2025
+# Last revision:			08.12.2025, 11:03
+#
+# Reference:          None
+#
+# Comments:           None
+#
+---
+ 
+entryPoints:
+  web:
+    address: ":80"
+  websecure:
+    address: ":443"
+
+certificatesResolvers:
+  le:
+    acme:
+      email: "${ADMIN_EMAIL}"
+      storage: "/letsencrypt/acme.json"
+      httpChallenge:
+        entryPoint: web
+
+providers:
+  file:
+    directory: "/etc/traefik/dynamic"
+    watch: true
+
+log:
+  level: INFO
+api:
+  dashboard: true
+ 
+...
+# vim:ts=2:sts=2:sw=2:et:ai
