@@ -48,14 +48,72 @@ podman-compose -f podman-compose.yml up --build
 AUTH_DISABLED=true  # for local dev / testing
 ```
 
-### Keycloak Realm
-- Realm: `mybills`
-- Client ID: `api-service`
-- Role: `billing_read`
+---
+
+### Keycloak Realm Configuration
+
+| Setting     | Value         |
+|-------------|---------------|
+| Realm       | `mybills`     |
+| Client ID   | `api-service` |
+| Role        | `billing_read` |
+
+The realm and client are imported via the provided file:
+```
+keycloak/import/my_bills-realm.json
+```
 
 ---
 
-## 🧾 API Overview
+### Obtaining a JWT Token (Client Credentials Flow)
+
+Use a `POST` request to fetch a JWT token for authenticated access:
+
+```http
+POST https://auth.localhost:8443/realms/mybills/protocol/openid-connect/token
+```
+
+#### Required Body Form Parameters (x-www-form-urlencoded):
+
+| Parameter       | Example Value         | Description                          |
+|-----------------|------------------------|--------------------------------------|
+| `grant_type`    | `client_credentials`   | Backend-to-backend flow              |
+| `client_id`     | `api-service`          | Matches your Keycloak client ID      |
+| `client_secret` | *(from Keycloak)*      | Secret from the client credentials   |
+
+#### Example using `curl`:
+
+```bash
+curl -X POST https://auth.localhost:8443/realms/mybills/protocol/openid-connect/token \
+  -H "Content-Type: application/x-www-form-urlencoded" \
+  -d "grant_type=client_credentials" \
+  -d "client_id=api-service" \
+  -d "client_secret=<SECRET>"
+```
+
+> Replace the `client_secret` with the actual value from your Keycloak client.
+
+---
+
+### Using the Access Token
+
+Once obtained, pass the token in your requests like this:
+
+```http
+Authorization: Bearer <ACCESS TOKEN>
+```
+
+#### Example API Call:
+
+```bash
+curl -H "Authorization: Bearer <ACCESS TOKEN>" https://api.localhost:8443/api/me/billing/months
+```
+
+If `AUTH_DISABLED=true`, the backend will simulate a default customer session using `customer_id=1`.
+
+---
+
+## API Overview
 
 > All endpoints start with `/api`
 
