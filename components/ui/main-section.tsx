@@ -1,16 +1,138 @@
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Button } from "./button";
+"use client";
 
-export default async function MainSection() {
-  const data = await fetch(
-    "http://api.localhost:8443/api/customers/1/billing/months"
+import { Button } from "./button";
+import { BillingMonthsResponse } from "@/lib/types";
+import { TimePeriodSelector } from "./time-period-selector";
+import { useTimePeriod } from "./time-period-provider";
+
+/**
+ * Calculates the average monthly cost from billing data.
+ *
+ * @param months - Array of monthly bill summaries
+ * @param count - Number of months to include in calculation
+ * @returns Average monthly cost rounded to 2 decimal places
+ */
+function calculateAverageCost(
+  months: BillingMonthsResponse["months"],
+  count: number
+): number {
+  if (months.length === 0) return 0;
+
+  const monthsToCalculate = months.slice(0, count);
+  const total = monthsToCalculate.reduce(
+    (sum, month) => sum + month.amount_total,
+    0
   );
+
+  return Math.round((total / monthsToCalculate.length) * 100) / 100;
+}
+
+/**
+ * Finds the highest bill amount and its month.
+ *
+ * @param months - Array of monthly bill summaries
+ * @returns Object with highest amount and month string, or null if no data
+ */
+function findHighestBill(
+  months: BillingMonthsResponse["months"]
+): { amount: number; month: string } | null {
+  if (months.length === 0) return null;
+
+  const highest = months.reduce((max, month) => {
+    return month.amount_total > max.amount_total ? month : max;
+  }, months[0]);
+
+  const date = new Date(highest.bill_to_date);
+  const monthStr = date.toLocaleDateString("en-US", {
+    month: "short",
+    year: "numeric",
+  });
+
+  return {
+    amount: highest.amount_total,
+    month: monthStr,
+  };
+}
+
+/**
+ * Calculates the percentage change between two amounts.
+ *
+ * @param current - Current amount
+ * @param previous - Previous amount
+ * @returns Percentage change rounded to nearest integer
+ */
+function calculatePercentageChange(current: number, previous: number): number {
+  if (previous === 0) return 0;
+  return Math.round(((current - previous) / Math.abs(previous)) * 100);
+}
+
+/**
+ * Formats a currency amount for display.
+ *
+ * @param amount - The amount to format
+ * @param currency - Currency code (default: "CHF")
+ * @returns Formatted string like "CHF 123.45"
+ */
+function formatCurrency(amount: number, currency: string = "CHF"): string {
+  return `${currency} ${amount.toFixed(2)}`;
+}
+
+interface MainSectionProps {
+  billingData: BillingMonthsResponse;
+}
+
+/**
+ * Main section component displaying billing overview cards.
+ *
+ * Shows:
+ * - This month's bill (last invoice)
+ * - Average monthly cost
+ * - Highest bill
+ * - Data used this month
+ */
+export default function MainSection({ billingData }: MainSectionProps) {
+  const { timePeriod, setTimePeriod } = useTimePeriod();
+  // Filter months based on selected time period
+  const filteredMonths =
+    timePeriod === "All"
+      ? billingData.months
+      : billingData.months.slice(0, parseInt(timePeriod));
+
+  // Get latest invoice (first month in array is most recent)
+  const latestInvoice = filteredMonths[0];
+  const lastTotal = latestInvoice?.amount_total ?? 0;
+
+  // Calculate percentage change vs previous month
+  let percentageChange = 0;
+  let percentageChangeText = "";
+  let percentageChangeClass = "";
+  if (filteredMonths.length >= 2) {
+    const previousMonth = filteredMonths[1];
+    percentageChange = calculatePercentageChange(
+      lastTotal,
+      previousMonth.amount_total
+    );
+    if (percentageChange > 0) {
+      percentageChangeText = `▲ ${Math.abs(percentageChange)}% vs last month`;
+      percentageChangeClass = "border-red-200 bg-red-50 text-red-600";
+    } else if (percentageChange < 0) {
+      percentageChangeText = `▼ ${Math.abs(percentageChange)}% vs last month`;
+      percentageChangeClass = "border-green-200 bg-green-50 text-green-600";
+    } else {
+      percentageChangeText = `${Math.abs(percentageChange)}% vs last month`;
+      percentageChangeClass = "border-green-200 bg-green-50 text-green-600";
+    }
+  }
+
+  // Calculate average for filtered months
+  const averageCost = calculateAverageCost(filteredMonths, filteredMonths.length);
+
+  // Find highest bill in filtered months
+  const highestBill = findHighestBill(filteredMonths);
+
+  // Get latest data usage (first month in array is most recent)
+  const latestMonth = filteredMonths[0];
+  const latestDataUsage = latestMonth?.usage?.data_gb ?? 0;
 
   return (
     <>
@@ -19,20 +141,10 @@ export default async function MainSection() {
           <div className="flex gap-3 flex-row items-center justify-between w-full">
             <h1 className="text-3xl tracking-tight text-secondary">My Bills</h1>
             <div className="flex flex-row space-x-3">
-              <Select defaultValue="All">
-                <SelectTrigger className="h-8 w-36 rounded-full border border-secondary bg-white/10 text-xs text-secondary">
-                  <SelectValue placeholder="Last 24 months" />
-                </SelectTrigger>
-                <SelectContent className="bg-white text-foreground border border-neutral-200 shadow-md">
-                  <SelectItem value="All">All</SelectItem>
-                  <SelectItem value="24">Last 12 months</SelectItem>
-                  <SelectItem value="12">Last 6 months</SelectItem>
-                  <SelectItem value="6">Last 3 months</SelectItem>
-                </SelectContent>
-              </Select>
-              <Button className="h-9 rounded-full bg-primary px-4 text-xs font-medium text-white hover:bg-[#c50000]">
-                Upload Excel
-              </Button>
+              <TimePeriodSelector
+                value={timePeriod}
+                onValueChange={setTimePeriod}
+              />
             </div>
           </div>
 
@@ -43,11 +155,15 @@ export default async function MainSection() {
               </p>
               <div className="mt-4 space-y-3">
                 <div className="text-3xl font-semibold leading-tight text-neutral-900">
-                  CHF {data.months}
+                  {formatCurrency(lastTotal)}
                 </div>
-                <span className="inline-flex items-center rounded-full border border-red-200 bg-red-50 px-3 py-1 text-[11px] font-medium text-red-600">
-                  ▲ 12% vs last month
-                </span>
+                {percentageChangeText && (
+                  <span
+                    className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-medium ${percentageChangeClass}`}
+                  >
+                    {percentageChangeText}
+                  </span>
+                )}
               </div>
             </div>
 
@@ -57,9 +173,13 @@ export default async function MainSection() {
               </p>
               <div className="mt-4 space-y-1">
                 <div className="text-3xl font-semibold leading-tight text-neutral-900">
-                  CHF 88.88
+                  {formatCurrency(averageCost)}
                 </div>
-                <p className="text-xs text-neutral-500">Last 12 months</p>
+                <p className="text-xs text-neutral-500">
+                  {timePeriod === "All"
+                    ? "All months"
+                    : `Last ${timePeriod} months`}
+                </p>
               </div>
             </div>
 
@@ -69,9 +189,13 @@ export default async function MainSection() {
               </p>
               <div className="mt-4 space-y-1">
                 <div className="text-3xl font-semibold leading-tight text-neutral-900">
-                  CHF 112.90
+                  {highestBill
+                    ? formatCurrency(highestBill.amount)
+                    : "CHF 0.00"}
                 </div>
-                <p className="text-xs text-neutral-500">Aug 2025</p>
+                <p className="text-xs text-neutral-500">
+                  {highestBill?.month || "N/A"}
+                </p>
               </div>
             </div>
 
@@ -81,7 +205,7 @@ export default async function MainSection() {
               </p>
               <div className="mt-4 space-y-1">
                 <div className="text-3xl font-semibold leading-tight text-neutral-900">
-                  88.88 GB
+                  {latestDataUsage.toFixed(2)} GB
                 </div>
                 <p className="text-xs text-neutral-500">This month</p>
               </div>

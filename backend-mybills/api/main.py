@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import time
@@ -10,6 +11,7 @@ from typing import Dict, List, Optional
 import requests
 from fastapi import FastAPI, Depends, HTTPException, Query, Header, UploadFile, File
 from fastapi.routing import APIRoute
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import (
     HTTPBearer,
     HTTPAuthorizationCredentials,
@@ -24,7 +26,6 @@ from pydantic_settings import BaseSettings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
-# Misc vars
 AUTH_DISABLED = os.getenv("AUTH_DISABLED", "false").lower() == "true"
 settings = get_settings()
 print(settings.public_url)
@@ -85,9 +86,13 @@ def refresh_jwks() -> None:
         data = resp.json()
         JWKS_KEYS = data.get("keys", [])
         if not JWKS_KEYS:
-            print(f"WARNING: JWKS from {OIDC_JWKS_URL} contained no keys")
-    except Exception as e:
-        print(f"WARNING: could not load JWKS from {OIDC_JWKS_URL}: {e}")
+            LOGGER.warning(
+                "JWKS from %s contained no keys", OIDC_JWKS_URL
+            )
+        else:
+            LOGGER.info("JWKS cache refreshed with %s keys", len(JWKS_KEYS))
+    except requests.RequestException as exc:
+        LOGGER.warning("Could not load JWKS from %s: %s", OIDC_JWKS_URL, exc)
         JWKS_KEYS = []
 
 # load once at startup
@@ -533,6 +538,15 @@ def get_auth_claims(token: str = Depends(get_token)) -> dict:
 # -----------------------------
 
 app = FastAPI(title="MyBills API")
+
+# Configure CORS
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.on_event("startup")
 async def show_routes():

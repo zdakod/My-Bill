@@ -1,3 +1,6 @@
+"use client";
+
+import { useMemo } from "react";
 import {
   Table,
   TableBody,
@@ -7,10 +10,110 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "./card";
-import { ScrollArea } from "@radix-ui/react-scroll-area";
-import { Badge } from "@/components/ui/badge";
+import { BillingMonthsResponse, MonthlyBillSummary } from "@/lib/types";
+import { useTimePeriod } from "./time-period-provider";
 
-export default function Invoices() {
+/**
+ * Formats a date string (YYYY-MM) to a readable month format.
+ *
+ * @param monthStr - Month string in "YYYY-MM" format
+ * @returns Formatted string like "Oct 2025"
+ */
+function formatMonth(monthStr: string): string {
+  const [year, month] = monthStr.split("-");
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
+
+/**
+ * Formats a date string (ISO format) to a readable date format.
+ *
+ * @param dateStr - ISO date string
+ * @returns Formatted string like "Oct 31, 2025"
+ */
+function formatDate(dateStr: string): string {
+  const date = new Date(dateStr);
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+/**
+ * Formats a currency amount for display.
+ *
+ * @param amount - The amount to format
+ * @param currency - Currency code (default: "CHF")
+ * @returns Formatted string like "CHF 123.45"
+ */
+function formatCurrency(amount: number, currency: string = "CHF"): string {
+  return `${currency} ${amount.toFixed(2)}`;
+}
+
+/**
+ * Formats data volume in GB for display.
+ *
+ * @param gb - Data volume in gigabytes
+ * @returns Formatted string like "27.2 GB"
+ */
+function formatDataVolume(gb: number): string {
+  return `${gb.toFixed(2)} GB`;
+}
+
+/**
+ * Transforms a monthly bill summary into a table row format.
+ *
+ * @param month - Monthly bill summary from API
+ * @returns Transformed invoice row data
+ */
+function transformInvoiceRow(month: MonthlyBillSummary) {
+  return {
+    month: formatMonth(month.month),
+    chargeFromDate: formatDate(month.bill_to_date),
+    amount: month.amount_total,
+    subscription: month.amount_by_category.subscription,
+    roaming: month.amount_by_category.roaming,
+    discount: month.amount_by_category.other, // Other category often contains discounts
+    dataVolume: formatDataVolume(month.usage.data_gb),
+    invoiceId: month.invoice_id,
+  };
+}
+
+interface InvoicesProps {
+  billingData: BillingMonthsResponse;
+}
+
+/**
+ * Invoices table component displaying billing details by month.
+ *
+ * Shows a scrollable table with invoice information including:
+ * - Month
+ * - Invoice number
+ * - Total amount
+ * - Subscription costs
+ * - Roaming costs
+ * - Discounts
+ * - Data volume used
+ */
+export default function Invoices({ billingData }: InvoicesProps) {
+  const { timePeriod } = useTimePeriod();
+
+  // Filter months based on selected time period
+  const filteredMonths = useMemo(() => {
+    if (timePeriod === "All") {
+      return billingData.months;
+    }
+    return billingData.months.slice(0, parseInt(timePeriod));
+  }, [billingData.months, timePeriod]);
+
+  // Sort by month descending (newest first)
+  const invoiceRows = useMemo(() => {
+    const sortedMonths = [...filteredMonths].sort((a, b) => {
+      return b.month.localeCompare(a.month);
+    });
+    return sortedMonths.map(transformInvoiceRow);
+  }, [filteredMonths]);
   return (
     <>
       <Card className="border-0 bg-white shadow-sm ring-1 ring-black/5 rounded-2xl">
@@ -26,7 +129,7 @@ export default function Invoices() {
         </CardHeader>
 
         <CardContent className="px-6 pb-4 pt-1">
-          <ScrollArea className="h-[260px]">
+          <div className="overflow-x-auto">
             <Table className="text-xs">
               <TableHeader>
                 <TableRow className="border-b bg-neutral-50/80">
@@ -34,7 +137,7 @@ export default function Invoices() {
                     Month
                   </TableHead>
                   <TableHead className="whitespace-nowrap px-3 py-2 text-[11px] font-medium text-neutral-500">
-                    Invoice #
+                    Charge from date
                   </TableHead>
                   <TableHead className="whitespace-nowrap px-3 py-2 text-[11px] font-medium text-neutral-500">
                     Amount
@@ -58,28 +161,57 @@ export default function Invoices() {
               </TableHeader>
 
               <TableBody>
-                <TableCell className="px-5 py-2">1</TableCell>
-                <TableCell className="px-3 py-2">1</TableCell>
-                <TableCell className="px-3 py-2 font-medium text-[#e60000]">
-                  CHF 1
-                </TableCell>
-                <TableCell className="px-3 py-2">CHF 1</TableCell>
-                <TableCell className="px-3 py-2">CHF 1</TableCell>
-                <TableCell className="px-3 py-2 text-green-600">
-                  CHF 1
-                </TableCell>
-                <TableCell className="px-3 py-2">1 GB</TableCell>
-                <TableCell className="px-4 py-2 text-right">
-                  <Badge
-                    variant="outline"
-                    className="rounded-full border-neutral-300 px-3 py-1 text-xs font-medium hover:bg-neutral-100"
-                  >
-                    View
-                  </Badge>
-                </TableCell>
+                {invoiceRows.length === 0 ? (
+                  <TableRow>
+                    <TableCell
+                      colSpan={8}
+                      className="px-5 py-8 text-center text-sm text-neutral-500"
+                    >
+                      No invoice data available
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  invoiceRows.map((row) => (
+                    <TableRow key={row.invoiceId} className="border-b">
+                      <TableCell className="px-5 py-2">{row.month}</TableCell>
+                      <TableCell className="px-3 py-2">
+                        {row.chargeFromDate}
+                      </TableCell>
+                      <TableCell
+                        className={`px-3 py-2 font-medium ${
+                          row.amount < 0 ? "text-green-600" : "text-[#e60000]"
+                        }`}
+                      >
+                        {formatCurrency(row.amount)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {formatCurrency(row.subscription)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {formatCurrency(row.roaming)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2 text-green-600">
+                        {formatCurrency(row.discount)}
+                      </TableCell>
+                      <TableCell className="px-3 py-2">
+                        {row.dataVolume}
+                      </TableCell>
+                      <TableCell className="px-4 py-2 text-right">
+                        <a
+                          href="https://www.sunrise.ch/mysunrise/de/privatkunden/login"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center rounded-full border border-neutral-300 px-3 py-1 text-xs font-medium hover:bg-neutral-100 transition-colors"
+                        >
+                          View
+                        </a>
+                      </TableCell>
+                    </TableRow>
+                  ))
+                )}
               </TableBody>
             </Table>
-          </ScrollArea>
+          </div>
         </CardContent>
       </Card>
     </>

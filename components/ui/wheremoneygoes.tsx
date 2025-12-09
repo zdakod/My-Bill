@@ -1,114 +1,119 @@
-"use client";
+import { WhereMoneyGoesChart } from "./wheremoneygoes-chart";
+import { BillingMonthsResponse, MonthlyCategories } from "@/lib/types";
 
-import { Label, Pie, PieChart } from "recharts";
+/**
+ * Chart data point for the pie chart.
+ */
+interface PieChartDataPoint {
+  breakdown: string;
+  visitors: number;
+  fill: string;
+}
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  ChartConfig,
-  ChartContainer,
-  ChartLegend,
-  ChartLegendContent,
-  ChartTooltip,
-  ChartTooltipContent,
-} from "@/components/ui/chart";
-import React from "react";
+/**
+ * Formats a date string (YYYY-MM) to a readable month format.
+ *
+ * @param monthStr - Month string in "YYYY-MM" format
+ * @returns Formatted string like "Oct 2025"
+ */
+function formatMonth(monthStr: string): string {
+  const [year, month] = monthStr.split("-");
+  const date = new Date(parseInt(year), parseInt(month) - 1);
+  return date.toLocaleDateString("en-US", { month: "short", year: "numeric" });
+}
 
-const chartData = [
-  { breakdown: "subscriptions", visitors: 275, fill: "var(--color-primary)" },
-  { breakdown: "roaming", visitors: 200, fill: "var(--color-secondary)" },
-  {
-    breakdown: "otherfees",
-    visitors: 187,
-    fill: "var(--color-secondary-light)",
-  },
-];
+/**
+ * Transforms category amounts into pie chart data format.
+ *
+ * @param categories - Monthly category breakdown
+ * @returns Array of pie chart data points
+ */
+function transformToPieChartData(
+  categories: MonthlyCategories
+): PieChartDataPoint[] {
+  const otherTotal =
+    categories.extra_data +
+    categories.device_payment +
+    categories.taxes_fees +
+    categories.other;
 
-const chartConfig = {
-  visitors: {
-    label: "Visitors",
-  },
-  subscriptions: {
-    label: "Subscriptions",
-    color: "var(--chart-1)",
-  },
-  roaming: {
-    label: "Roaming",
-    color: "var(--chart-2)",
-  },
-  otherfees: {
-    label: "Other fees",
-    color: "var(--chart-3)",
-  },
-} satisfies ChartConfig;
+  const data: PieChartDataPoint[] = [
+    {
+      breakdown: "subscriptions",
+      visitors: categories.subscription ?? 0,
+      fill: "#ad1212",
+    },
+    {
+      breakdown: "roaming",
+      visitors: categories.roaming ?? 0,
+      fill: "#3D3935",
+    },
+    {
+      breakdown: "otherfees",
+      visitors: otherTotal ?? 0,
+      fill: "#E6E3DF",
+    },
+  ];
 
-export default function WhereMoneyGoes() {
+  return data.some((d) => d.visitors > 0) ? data : [];
+}
+
+/**
+ * Fetches billing data from the API.
+ *
+ * @param customerId - The customer ID to fetch billing data for
+ * @returns Promise resolving to billing months response
+ * @throws Error if the API request fails
+ */
+async function fetchBillingData(
+  customerId: number
+): Promise<BillingMonthsResponse> {
+  const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://api.localhost:8080";
+  const response = await fetch(
+    `${apiUrl}/api/customers/${customerId}/billing/months`,
+    { cache: "no-store" }
+  );
+
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch billing data: ${response.status} ${response.statusText}`
+    );
+  }
+
+  return response.json();
+}
+
+/**
+ * Where your money goes pie chart component (server wrapper).
+ *
+ * Fetches billing data server-side and passes it to the client chart component.
+ */
+export default async function WhereMoneyGoes() {
+  const CUSTOMER_ID = 1;
+  let chartData: PieChartDataPoint[] = [];
+  let currentMonthTotal = 0;
+  let currentMonthStr = "";
+
+  try {
+    const billingData = await fetchBillingData(CUSTOMER_ID);
+
+    // Get most recent month (first in array is most recent)
+    const latestMonth = billingData.months[0];
+    if (latestMonth) {
+      currentMonthStr = formatMonth(latestMonth.month);
+      currentMonthTotal = latestMonth.amount_total;
+      chartData = transformToPieChartData(latestMonth.amount_by_category);
+    }
+  } catch (error) {
+    console.error("Error loading spending breakdown data:", error);
+    // Component will render empty chart on error
+  }
+
   return (
-    <Card className="border-neutral-200 flex flex-col w-full md:w-1/2 bg-white">
-      <CardHeader className="pb-0">
-        <CardTitle className="text-sm font-semibold">
-          Where your money goes
-        </CardTitle>
-        <CardDescription className="text-xs">
-          Breakdown for Oct 2025
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex-1 pb-0">
-        <ChartContainer
-          config={chartConfig}
-          className="mx-auto aspect-square max-h-[350px]"
-        >
-          <PieChart>
-            <ChartTooltip
-              cursor={false}
-              content={<ChartTooltipContent hideLabel />}
-            />
-            <Pie
-              data={chartData}
-              dataKey="visitors"
-              nameKey="breakdown"
-              innerRadius={85}
-              strokeWidth={2}
-            >
-              <Label
-                content={({ viewBox }) => {
-                  if (viewBox && "cx" in viewBox && "cy" in viewBox) {
-                    return (
-                      <text
-                        x={viewBox.cx}
-                        y={viewBox.cy}
-                        textAnchor="middle"
-                        dominantBaseline="middle"
-                      >
-                        <tspan
-                          x={viewBox.cx}
-                          y={viewBox.cy}
-                          className="fill-foreground text-xl font-bold"
-                        >
-                          CHF 89.50
-                        </tspan>
-                        <tspan
-                          x={viewBox.cx}
-                          y={(viewBox.cy || 0) + 24}
-                          className="fill-muted-foreground"
-                        >
-                          This month
-                        </tspan>
-                      </text>
-                    );
-                  }
-                }}
-              />
-            </Pie>
-            <ChartLegend content={<ChartLegendContent nameKey="breakdown" />} />
-          </PieChart>
-        </ChartContainer>
-      </CardContent>
-    </Card>
+    <WhereMoneyGoesChart
+      chartData={chartData}
+      currentMonthTotal={currentMonthTotal}
+      currentMonthStr={currentMonthStr}
+    />
   );
 }
