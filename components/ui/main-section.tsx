@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { Button } from "./button";
 import { BillingMonthsResponse } from "@/lib/types";
 import { TimePeriodSelector } from "./time-period-selector";
 import { useTimePeriod } from "./time-period-provider";
+import { ExcelUpload } from "./excel-upload";
 
 /**
  * Calculates the average monthly cost from billing data.
@@ -92,6 +94,8 @@ interface MainSectionProps {
  */
 export default function MainSection({ billingData }: MainSectionProps) {
   const { timePeriod, setTimePeriod } = useTimePeriod();
+  const [toastMessage, setToastMessage] = useState<{ type: "error"; message: string } | null>(null);
+
   // Filter months based on selected time period
   const filteredMonths =
     timePeriod === "All"
@@ -136,6 +140,19 @@ export default function MainSection({ billingData }: MainSectionProps) {
 
   return (
     <>
+      {toastMessage && (
+        <div className="fixed top-20 right-4 z-50 rounded-lg px-4 py-3 shadow-lg bg-red-50 text-red-800 border border-red-200">
+          <div className="flex items-center gap-2">
+            <span className="font-medium">{toastMessage.message}</span>
+            <button
+              onClick={() => setToastMessage(null)}
+              className="ml-2 text-gray-400 hover:text-gray-600"
+            >
+              ×
+            </button>
+          </div>
+        </div>
+      )}
       <section>
         <div className="mx-auto flex max-w-6xl flex-col gap-6 pt-4">
           <div className="flex gap-3 flex-row items-center justify-between w-full">
@@ -144,6 +161,12 @@ export default function MainSection({ billingData }: MainSectionProps) {
               <TimePeriodSelector
                 value={timePeriod}
                 onValueChange={setTimePeriod}
+              />
+              <ExcelUpload
+                onUploadError={(error) => {
+                  setToastMessage({ type: "error", message: error });
+                  setTimeout(() => setToastMessage(null), 5000);
+                }}
               />
             </div>
           </div>
