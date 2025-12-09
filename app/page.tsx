@@ -1,64 +1,75 @@
-import Image from "next/image";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import Header from "@/components/ui/header";
+import Billovertime from "@/components/ui/billovertime";
+import WhereMoneyGoes from "@/components/ui/wheremoneygoes";
+import MainSection from "@/components/ui/main-section";
+import Invoices from "@/components/ui/invoices";
+import { AlertTriangle, PiggyBank } from "lucide-react";
 
-export default function Home() {
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { ArrowUpRight } from "lucide-react";
+
+const sunriseGradient = "bg-gradient-to-r from-[#DA291C] to-[#E8600A]";
+
+export default async function MyBillsPage() {
+  const res = await fetch(
+    "http://api.localhost:8443/api/customers/1/billing/months",
+    { cache: "no-store" } // wenn immer frisch
+  );
+  const data = await res.json();
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="min-h-screen w-full bg-[#f5f5f5] text-[#333]">
+      <Header />
+      <main className="mx-auto max-w-6xl px-4 pb-10 pt-4 space-y-4">
+        <MainSection />;
+        <section className="flex flex-col md:flex-row mx-auto justify-between gap-4 items-stretch">
+          <Billovertime />
+          <WhereMoneyGoes />
+        </section>
+        <section className="mt-4 grid gap-3 md:grid-cols-1">
+          <Card className="border-0 bg-white shadow-sm ring-1 ring-black/5 rounded-2xl">
+            <CardContent className="flex items-center gap-3 px-5 py-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-red-100 text-primary">
+                <AlertTriangle className="h-5 w-5" />
+              </div>
+
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-semibold text-neutral-900">
+                  Your October bill is higher than usual
+                </p>
+                <p className="text-xs text-neutral-600">
+                  Extra data and roaming increased your cost.
+                </p>
+              </div>
+
+              <Button
+                size="sm"
+                className="h-8 rounded-full bg-primary px-4 text-[11px] font-medium text-white hover:bg-[#c50000]"
+              >
+                See details
+              </Button>
+            </CardContent>
+          </Card>
+          <Card className="border-0 bg-white shadow-sm ring-1 ring-black/5 rounded-2xl">
+            <CardContent className="flex items-center gap-3 px-5 py-4">
+              <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#FFF7E0] text-[#F5A500]">
+                <PiggyBank className="h-5 w-5" />
+              </div>
+
+              <div className="flex-1 space-y-1">
+                <p className="text-sm font-semibold text-neutral-900">
+                  Potential savings available
+                </p>
+                <p className="text-xs text-neutral-600">
+                  A plan with more data could lower your monthly cost.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        </section>
+        <Invoices />
       </main>
     </div>
   );

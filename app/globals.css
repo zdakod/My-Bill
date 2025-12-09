@@ -1,26 +1,21 @@
 @import "tailwindcss";
+@import "flowbite/src/themes/default";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
+@plugin "flowbite/plugin";
+
+@theme {
+  --color-primary: #ad1212;
+  --color-secondary: #3D3935;
+  --color-secondary-light: #E6E3DF;
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  --font-alfa: var(--font-alfa-slab-one);
+  --font-anek: var(--font-anek-tamil);
+  --font-inter: var(--font-inter);
+  --font-corinthia: var(--font-corinthia);
+  --color-primary: #AD1212;
+  --color-primary-light: #E5756D;
+  --color-primary-lighter: #EF9F99;
   }
-}
 
-body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
-}
