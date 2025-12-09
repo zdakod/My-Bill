@@ -5,3 +5,7 @@ mysqlclient
 python-jose[cryptography]
 requests
 passlib[bcrypt]
+openpyxl
+pandas
+pydantic-settings
+python-multipart

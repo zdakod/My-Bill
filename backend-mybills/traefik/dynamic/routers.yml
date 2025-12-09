@@ -3,9 +3,9 @@
 # Contact Email:      kevin.vo@sunrise.net
 # Contact Phone:      +41 76 777 54 29
 #
-# Current file:				/Users/vok/Desktop/sunrise-hackathon/podman-stack/traefik/dynamic/routers.yml
+# Current file:				/Users/vok/Desktop/MyBills/backend-mybills/traefik/dynamic/routers.yml
 # Date of creation:   08.12.2025
-# Last revision:			08.12.2025, 17:16
+# Last revision:			09.12.2025, 10:16
 #
 # Reference:          None
 #
@@ -19,14 +19,22 @@
 #      keyFile: "/certs/internal/tls.key"
 
 # === DEV ===
+#http:
+#  routers:
+#    api-router:
+#      rule: "PathPrefix(`/api`)"
+#      entryPoints:
+#        - websecure
+#      tls:
+#        certResolver: le
+#      service: api-service
+
 http:
   routers:
     api-router:
-      rule: "PathPrefix(`/api`)"
+      rule: "Host(`api.localhost`) && PathPrefix(`/api`)"
       entryPoints:
-        - websecure
-      tls:
-        certResolver: le
+        - web
       service: api-service
 
     keycloak-router:

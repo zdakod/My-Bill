@@ -1,6 +1,6 @@
 -- MySQL dump 10.13  Distrib 8.0.44, for Linux (x86_64)
 --
--- Host: localhost    Database: mybills
+-- Host: localhost    Database: my_bills
 -- ------------------------------------------------------
 -- Server version	8.0.44-0ubuntu0.24.04.2
 

@@ -1,11 +1,15 @@
 import os
 import re
 import time
-from datetime import date
+import pandas as pd
+from config import get_settings
+from datetime import date, datetime
+from io import BytesIO
 from typing import Dict, List, Optional
 
 import requests
-from fastapi import FastAPI, Depends, HTTPException, Query, Header
+from fastapi import FastAPI, Depends, HTTPException, Query, Header, UploadFile, File
+from fastapi.routing import APIRoute
 from fastapi.security import (
     HTTPBearer,
     HTTPAuthorizationCredentials,
@@ -14,11 +18,16 @@ from fastapi.security import (
 )
 from jose import jwt, jwk
 from jose.utils import base64url_decode
-from pydantic import BaseModel
+from functools import lru_cache
+from pydantic import AnyUrl, BaseModel
+from pydantic_settings import BaseSettings
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, Session
 
+# Misc vars
 AUTH_DISABLED = os.getenv("AUTH_DISABLED", "false").lower() == "true"
+settings = get_settings()
+print(settings.public_url)
 
 # -----------------------------
 # DB CONFIG
@@ -525,6 +534,13 @@ def get_auth_claims(token: str = Depends(get_token)) -> dict:
 
 app = FastAPI(title="MyBills API")
 
+@app.on_event("startup")
+async def show_routes():
+    print("Registered API routes:")
+    for route in app.routes:
+        if isinstance(route, APIRoute):
+            print(f"{route.path}  [{', '.join(route.methods)}]")
+
 @app.get("/api/health")
 def health():
     return {"status": "ok"}
@@ -566,3 +582,108 @@ def get_my_billing_detail(
     customer_id: int = Depends(get_customer_id),
 ):
     return load_bill_detail(db, customer_id, invoice_id)
+
+@app.get("/config")
+def show_config():
+    return {
+        "public_url": settings.public_url,
+        "auth_enabled": not settings.AUTH_DISABLED
+    }
+
+@app.post("/api/me/upload-bills")
+def upload_bills(
+    file: UploadFile = File(...),
+    month: Optional[str] = None,
+    db: Session = Depends(get_db),
+    customer_id: int = Depends(get_customer_id),
+):
+    """
+    Uploads and imports a billing Excel file for the authenticated user.
+
+    - Validates file structure quietly.
+    - Skips duplicates (same invoice number for same customer).
+    - Always keeps DB consistent.
+    - Returns friendly messages for frontend.
+    """
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Invalid file format.")
+
+    try:
+        content = file.file.read()
+        df = pd.read_excel(BytesIO(content))
+
+        # Quiet column validation
+        expected_columns = {
+            "invoice_number", "charge_type_id", "jurisdiction_id",
+            "description", "charge_from_date", "charge_to_date",
+            "display_units", "call_counter", "charged_amount"
+        }
+        if not expected_columns.issubset(df.columns):
+            raise HTTPException(status_code=400, detail="Invalid file structure.")
+
+        # Determine invoice month
+        bill_to_date = datetime.strptime(month + "-01", "%Y-%m-%d").date() if month else datetime.today().date()
+
+        invoice_number = int(df.iloc[0]["invoice_number"])
+
+        # Check for duplicates
+        exists = db.execute(text("""
+            SELECT 1 FROM invoices
+            WHERE customer_id = :cid AND invoice_number = :inv
+            LIMIT 1
+        """), {"cid": customer_id, "inv": invoice_number}).fetchone()
+
+        if exists:
+            return {
+                "status": "skipped",
+                "message": f"Invoice {invoice_number} already exists for customer {customer_id}."
+            }
+
+        # Create new invoice
+        db.execute(text("""
+            INSERT INTO invoices (customer_id, invoice_number, bill_to_date, currency)
+            VALUES (:cid, :inv, :btd, 'CHF')
+        """), {
+            "cid": customer_id,
+            "inv": invoice_number,
+            "btd": bill_to_date
+        })
+        invoice_id = db.execute(text("SELECT LAST_INSERT_ID()")).scalar()
+
+        # Insert charges
+        for _, row in df.iterrows():
+            db.execute(text("""
+                INSERT INTO charges (
+                    invoice_id, charge_type_id, jurisdiction_id, description,
+                    charge_from_date, charge_to_date,
+                    display_units, call_counter, charged_amount, discount
+                )
+                VALUES (
+                    :invoice_id, :charge_type_id, :jurisdiction_id, :description,
+                    :charge_from_date, :charge_to_date,
+                    :display_units, :call_counter, :charged_amount, :discount
+                )
+            """), {
+                "invoice_id": invoice_id,
+                "charge_type_id": int(row["charge_type_id"]),
+                "jurisdiction_id": int(row["jurisdiction_id"]),
+                "description": str(row["description"]),
+                "charge_from_date": row["charge_from_date"],
+                "charge_to_date": row["charge_to_date"],
+                "display_units": row.get("display_units"),
+                "call_counter": int(row.get("call_counter") or 0),
+                "charged_amount": float(row["charged_amount"]),
+                "discount": float(row.get("discount") or 0.0),
+            })
+
+        db.commit()
+
+        return {
+            "status": "success",
+            "message": f"Invoice {invoice_number} imported for customer {customer_id}",
+            "charges_imported": len(df)
+        }
+
+    except Exception:
+        db.rollback()
+        raise HTTPException(status_code=400, detail="Invalid file.")
